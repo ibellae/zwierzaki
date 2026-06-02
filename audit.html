@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audyt dźwięków</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff; padding: 16px; }
+        h1 { font-size: 20px; margin-bottom: 16px; text-align: center; }
+        .stats { text-align: center; margin-bottom: 16px; font-size: 14px; opacity: 0.7; }
+        .animal-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; margin-bottom: 8px;
+            background: #16213e; border-radius: 12px;
+        }
+        .animal-row.good { border-left: 4px solid #4ade80; }
+        .animal-row.bad { border-left: 4px solid #f87171; }
+        .emoji { font-size: 28px; width: 40px; text-align: center; }
+        .info { flex: 1; }
+        .name { font-weight: 600; font-size: 16px; }
+        .en-name { font-size: 12px; opacity: 0.5; }
+        .btns { display: flex; gap: 6px; }
+        .btn {
+            width: 44px; height: 44px; border-radius: 50%;
+            border: none; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-play { background: #4facfe; color: #fff; }
+        .btn-play.playing { background: #f5576c; }
+        .btn-ok { background: #4ade80; color: #000; }
+        .btn-bad { background: #f87171; color: #000; }
+        .btn-ok.selected, .btn-bad.selected { transform: scale(1.2); box-shadow: 0 0 12px rgba(255,255,255,0.3); }
+        .export-bar {
+            position: sticky; bottom: 0; padding: 12px;
+            background: #1a1a2e; border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .export-btn {
+            padding: 12px 24px; border-radius: 12px; border: none;
+            background: #4facfe; color: #fff; font-size: 16px; font-weight: 600;
+            cursor: pointer;
+        }
+        .result { margin-top: 16px; padding: 16px; background: #16213e; border-radius: 12px; white-space: pre-wrap; font-size: 13px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Audyt dźwięków zwierząt</h1>
+    <p class="stats">Odsłuchaj każdy dźwięk. Oznacz OK lub ZŁY.</p>
+    <div id="list"></div>
+    <div class="export-bar">
+        <button class="export-btn" onclick="exportResults()">Pokaż wyniki</button>
+    </div>
+    <div id="resultBox" class="result" style="display:none"></div>
+
+    <script src="animals.js"></script>
+    <script>
+        let currentAudio = null;
+        let currentBtn = null;
+        const votes = {};
+
+        const list = document.getElementById('list');
+        const entries = Object.entries(UNIQUE_ANIMALS).sort((a, b) => a[1].pl.localeCompare(b[1].pl, 'pl'));
+
+        for (const [en, data] of entries) {
+            const row = document.createElement('div');
+            row.className = 'animal-row';
+            row.id = `row-${en}`;
+            row.innerHTML = `
+                <span class="emoji">${data.emoji}</span>
+                <div class="info">
+                    <div class="name">${data.pl}</div>
+                    <div class="en-name">${en}</div>
+                </div>
+                <div class="btns">
+                    <button class="btn btn-play" data-en="${en}" onclick="playToggle(this, '${en}')">&#9654;</button>
+                    <button class="btn btn-ok" onclick="vote('${en}', 'ok', this)">&#10003;</button>
+                    <button class="btn btn-bad" onclick="vote('${en}', 'bad', this)">&#10007;</button>
+                </div>
+            `;
+            list.appendChild(row);
+        }
+
+        function playToggle(btn, en) {
+            if (currentAudio && currentBtn === btn) {
+                currentAudio.pause();
+                currentAudio = null;
+                btn.innerHTML = '&#9654;';
+                btn.classList.remove('playing');
+                currentBtn = null;
+                return;
+            }
+
+            if (currentAudio) {
+                currentAudio.pause();
+                if (currentBtn) {
+                    currentBtn.innerHTML = '&#9654;';
+                    currentBtn.classList.remove('playing');
+                }
+            }
+
+            const audio = new Audio(`sounds/${en}.mp3`);
+            currentAudio = audio;
+            currentBtn = btn;
+            btn.innerHTML = '&#9632;';
+            btn.classList.add('playing');
+
+            audio.addEventListener('ended', () => {
+                btn.innerHTML = '&#9654;';
+                btn.classList.remove('playing');
+                currentAudio = null;
+                currentBtn = null;
+            });
+
+            audio.addEventListener('error', () => {
+                btn.innerHTML = '!';
+                btn.classList.remove('playing');
+                vote(en, 'bad');
+            });
+
+            audio.play().catch(() => {
+                btn.innerHTML = '&#9654;';
+                btn.classList.remove('playing');
+            });
+        }
+
+        function vote(en, value, btn) {
+            votes[en] = value;
+            const row = document.getElementById(`row-${en}`);
+            row.classList.remove('good', 'bad');
+            row.classList.add(value === 'ok' ? 'good' : 'bad');
+
+            const btns = row.querySelectorAll('.btn-ok, .btn-bad');
+            btns.forEach(b => b.classList.remove('selected'));
+            if (btn) btn.classList.add('selected');
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const ok = Object.values(votes).filter(v => v === 'ok').length;
+            const bad = Object.values(votes).filter(v => v === 'bad').length;
+            const total = entries.length;
+            document.querySelector('.stats').textContent = `${ok} OK / ${bad} ZŁY / ${total - ok - bad} nieocenione`;
+        }
+
+        function exportResults() {
+            const bad = Object.entries(votes).filter(([k, v]) => v === 'bad').map(([k]) => k).sort();
+            const ok = Object.entries(votes).filter(([k, v]) => v === 'ok').map(([k]) => k).sort();
+            const box = document.getElementById('resultBox');
+            box.style.display = 'block';
+            box.textContent = `ZŁE dźwięki (${bad.length}):\n${bad.join(', ')}\n\nOK dźwięki (${ok.length}):\n${ok.join(', ')}`;
+            box.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

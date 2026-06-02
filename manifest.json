@@ -3,8 +3,8 @@
     "short_name": "Zwierzęta",
     "start_url": "./",
     "display": "standalone",
-    "background_color": "#1a1a2e",
-    "theme_color": "#1a1a2e",
+    "background_color": "#f0f4ff",
+    "theme_color": "#f0f4ff",
     "orientation": "portrait",
     "icons": [
         { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },

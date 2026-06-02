@@ -1,11 +1,10 @@
-const CACHE_NAME = 'animal-sounds-v4';
+const CACHE_NAME = 'animal-sounds-v6';
 
 const CORE_ASSETS = [
     './',
     './index.html',
     './app.js',
     './animals.js',
-    './manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,19 +24,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((cached) => {
-            if (cached) return cached;
+    const url = event.request.url;
 
-            return fetch(event.request).then((response) => {
-                if (response.ok && event.request.url.includes('/sounds/')) {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                }
-                return response;
-            }).catch(() => {
-                return new Response('Offline', { status: 503 });
-            });
-        })
+    // Core assets: cache first
+    if (!url.includes('/sounds/') && !url.includes('/images/')) {
+        event.respondWith(
+            caches.match(event.request).then((cached) => cached || fetch(event.request))
+        );
+        return;
+    }
+
+    // Media: network first, cache for offline
+    event.respondWith(
+        fetch(event.request).then((response) => {
+            if (response.ok) {
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return response;
+        }).catch(() => caches.match(event.request).then((cached) => cached || new Response('', { status: 503 })))
     );
 });
