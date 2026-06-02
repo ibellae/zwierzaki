@@ -74,7 +74,6 @@ const ANIMALS_DB = {
     "leopard": { en: "leopard", emoji: "🐆" },
     "gepard": { en: "cheetah", emoji: "🐆" },
     "pantera": { en: "panther", emoji: "🐆" },
-    "bawół": { en: "buffalo", emoji: "🐃" },
     "bizon": { en: "bison", emoji: "🦬" },
     "mors": { en: "walrus", emoji: "🦭" },
     "wydra": { en: "otter", emoji: "🦦" },
@@ -234,8 +233,6 @@ const DECLENSION_MAP = {
     "geparda": "gepard", "gepardem": "gepard",
     // pantera
     "pantery": "pantera", "panterze": "pantera", "panterę": "pantera", "panterą": "pantera",
-    // bawół
-    "bawołu": "bawół", "bawołem": "bawół", "bawoła": "bawół",
     // bizon
     "bizona": "bizon", "bizonem": "bizon",
     // mors

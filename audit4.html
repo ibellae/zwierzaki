@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audyt 4</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #f5f7fa; color: #333; padding: 16px; }
+        h1 { font-size: 20px; margin-bottom: 16px; text-align: center; }
+        .row { display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .row.good { border-left: 4px solid #4ade80; }
+        .row.bad { border-left: 4px solid #f87171; }
+        .emoji { font-size: 32px; width: 44px; text-align: center; }
+        .name { font-weight: 700; font-size: 18px; flex: 1; }
+        .btns { display: flex; gap: 8px; }
+        .btn { width: 48px; height: 48px; border-radius: 50%; border: none; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-play { background: #ff9800; color: #fff; }
+        .btn-play.playing { background: #e91e63; }
+        .btn-ok { background: #4ade80; color: #000; }
+        .btn-bad { background: #f87171; color: #000; }
+        .btn-ok.selected, .btn-bad.selected { transform: scale(1.15); box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .result { margin-top: 16px; padding: 16px; background: #fff; border-radius: 12px; font-family: monospace; white-space: pre-wrap; }
+        .export-btn { display: block; margin: 16px auto; padding: 14px 28px; border-radius: 14px; border: none; background: #ff9800; color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Sowa i hiena</h1>
+    <div id="list"></div>
+    <button class="export-btn" onclick="exportResults()">Pokaż wyniki</button>
+    <div id="resultBox" class="result" style="display:none"></div>
+    <script>
+        const ITEMS = [
+            { en: "owl", pl: "sowa", emoji: "🦉" },
+            { en: "hyena", pl: "hiena", emoji: "🦊" },
+        ];
+        let audio = null, playBtn = null;
+        const votes = {};
+        const list = document.getElementById('list');
+        for (const a of ITEMS) {
+            const r = document.createElement('div');
+            r.className = 'row'; r.id = `r-${a.en}`;
+            r.innerHTML = `<span class="emoji">${a.emoji}</span><div class="name">${a.pl}</div><div class="btns"><button class="btn btn-play" onclick="play(this,'${a.en}')">&#9654;</button><button class="btn btn-ok" onclick="vote('${a.en}','ok',this)">&#10003;</button><button class="btn btn-bad" onclick="vote('${a.en}','bad',this)">&#10007;</button></div>`;
+            list.appendChild(r);
+        }
+        function play(btn, en) {
+            if (audio && playBtn === btn) { audio.pause(); audio = null; btn.innerHTML = '&#9654;'; btn.classList.remove('playing'); playBtn = null; return; }
+            if (audio) { audio.pause(); if (playBtn) { playBtn.innerHTML = '&#9654;'; playBtn.classList.remove('playing'); } }
+            audio = new Audio(`sounds/${en}.mp3?v=4`); playBtn = btn;
+            btn.innerHTML = '&#9632;'; btn.classList.add('playing');
+            audio.onended = () => { btn.innerHTML = '&#9654;'; btn.classList.remove('playing'); audio = null; playBtn = null; };
+            audio.play().catch(() => { btn.innerHTML = '&#9654;'; btn.classList.remove('playing'); });
+        }
+        function vote(en, v, btn) {
+            votes[en] = v;
+            const r = document.getElementById(`r-${en}`);
+            r.classList.remove('good','bad'); r.classList.add(v === 'ok' ? 'good' : 'bad');
+            r.querySelectorAll('.btn-ok,.btn-bad').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        }
+        function exportResults() {
+            const bad = Object.entries(votes).filter(([,v]) => v === 'bad').map(([k]) => k).sort();
+            const ok = Object.entries(votes).filter(([,v]) => v === 'ok').map(([k]) => k).sort();
+            const box = document.getElementById('resultBox');
+            box.style.display = 'block';
+            box.textContent = `ZŁE: ${bad.join(', ') || 'brak'}\nOK: ${ok.join(', ') || 'brak'}`;
+        }
+    </script>
+</body>
+</html>
