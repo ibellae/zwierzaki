@@ -270,11 +270,28 @@ function playSound(enName) {
     });
 }
 
+function stopSound() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+    }
+    imageContainer.classList.remove('playing');
+}
+
 function replaySound() {
     if (currentAnimalEn) {
         playSound(currentAnimalEn);
     }
 }
+
+imageContainer.addEventListener('click', () => {
+    if (currentAudio && !currentAudio.paused) {
+        stopSound();
+    } else if (currentAnimalEn) {
+        playSound(currentAnimalEn);
+    }
+});
 
 function searchAnimal() {
     const query = searchInput.value.trim().toLowerCase();

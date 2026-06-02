@@ -1,4 +1,4 @@
-const CACHE_NAME = 'animal-sounds-v2';
+const CACHE_NAME = 'animal-sounds-v3';
 
 const CORE_ASSETS = [
     './',
