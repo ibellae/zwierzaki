@@ -93,6 +93,11 @@ const ANIMALS_DB = {
     "kukułka": { en: "cuckoo", emoji: "🐦" },
     "sroka": { en: "magpie", emoji: "🐦" },
     "kruk": { en: "raven", emoji: "🐦‍⬛" },
+    "krokodyl": { en: "crocodile", emoji: "🐊" },
+    "grzechotnik": { en: "rattlesnake", emoji: "🐍" },
+    "drozd": { en: "thrush", emoji: "🐦" },
+    "sikora": { en: "titmouse", emoji: "🐦" },
+    "sikorka": { en: "titmouse", emoji: "🐦" },
 };
 
 // Polish declension forms → base form (nominative)
@@ -269,6 +274,15 @@ const DECLENSION_MAP = {
     "sroki": "sroka", "sroce": "sroka", "srokę": "sroka", "sroką": "sroka",
     // kruk
     "kruka": "kruk", "krukiem": "kruk",
+    // krokodyl
+    "krokodyla": "krokodyl", "krokodylem": "krokodyl",
+    // grzechotnik
+    "grzechotnika": "grzechotnik", "grzechotnikiem": "grzechotnik",
+    // drozd
+    "drozda": "drozd", "drozdem": "drozd",
+    // sikora
+    "sikory": "sikora", "sikorze": "sikora", "sikorę": "sikora", "sikorą": "sikora",
+    "sikorki": "sikorka", "sikorce": "sikorka", "sikorkę": "sikorka", "sikorką": "sikorka",
     // świerszcz
     "świerszcza": "świerszcz", "świerszczem": "świerszcz",
     // cykada
