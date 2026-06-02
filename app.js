@@ -11,6 +11,20 @@ let currentAudio = null;
 let currentAnimalEn = null;
 let isListening = false;
 let recognition = null;
+let listenTimeout = null;
+
+// Unlock audio on first touch (iOS requirement)
+let audioUnlocked = false;
+function unlockAudio() {
+    if (audioUnlocked) return;
+    const silence = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAgAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAbD/2wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAALAAJkAUAAAP/////////////////////////////////////////////////////////////////////////////////+MYxDAAAANIAAAAAP///////////////////////////////////////////////////////////////////////////////w==');
+    silence.play().then(() => {
+        audioUnlocked = true;
+        silence.pause();
+    }).catch(() => {});
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SpeechRecognition) {
@@ -23,13 +37,15 @@ if (SpeechRecognition) {
     recognition.lang = 'pl-PL';
     recognition.continuous = false;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event) => {
+        clearTimeout(listenTimeout);
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript = event.results[i][0].transcript;
         }
-        statusText.textContent = `Słyszę: "${transcript}"`;
+        statusText.textContent = `"${transcript}"`;
 
         if (event.results[event.results.length - 1].isFinal) {
             stopListening();
@@ -38,22 +54,28 @@ if (SpeechRecognition) {
     };
 
     recognition.onerror = (event) => {
+        clearTimeout(listenTimeout);
         stopListening();
         if (event.error === 'no-speech') {
             statusText.textContent = 'Nie usłyszałem. Spróbuj jeszcze raz.';
+        } else if (event.error === 'not-allowed') {
+            statusText.textContent = 'Brak dostępu do mikrofonu. Sprawdź ustawienia.';
         } else {
-            statusText.textContent = 'Błąd mikrofonu. Spróbuj ponownie.';
+            statusText.textContent = 'Spróbuj ponownie.';
         }
     };
 
     recognition.onend = () => {
-        stopListening();
+        clearTimeout(listenTimeout);
+        if (isListening) {
+            stopListening();
+        }
     };
 }
 
 function toggleListening() {
     if (isListening) {
-        recognition.stop();
+        try { recognition.stop(); } catch (e) {}
         stopListening();
     } else {
         startListening();
@@ -62,19 +84,40 @@ function toggleListening() {
 
 function startListening() {
     if (!recognition) return;
+
+    // Stop any playing audio first
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    imageContainer.classList.remove('playing');
+
     isListening = true;
     micBtn.classList.add('listening');
     statusText.textContent = 'Słucham...';
+
+    // Safety timeout - stop after 8 seconds if nothing happens
+    clearTimeout(listenTimeout);
+    listenTimeout = setTimeout(() => {
+        if (isListening) {
+            try { recognition.stop(); } catch (e) {}
+            stopListening();
+            statusText.textContent = 'Nie usłyszałem. Naciśnij mikrofon i spróbuj jeszcze raz.';
+        }
+    }, 8000);
+
     try {
         recognition.start();
     } catch (e) {
         stopListening();
+        statusText.textContent = 'Naciśnij mikrofon ponownie.';
     }
 }
 
 function stopListening() {
     isListening = false;
     micBtn.classList.remove('listening');
+    clearTimeout(listenTimeout);
 }
 
 const SENTENCE_PATTERNS = [
@@ -114,7 +157,8 @@ function extractAnimalFromSentence(query) {
 function handleAnimalQuery(query) {
     query = query.replace(/[?.!,]/g, '').trim();
 
-    // 1. Try sentence patterns first ("jak brzmi pies", "odtwórz dźwięk krowy")
+    if (!query) return;
+
     const fromSentence = extractAnimalFromSentence(query);
     if (fromSentence && ANIMALS_DB[fromSentence]) {
         const data = ANIMALS_DB[fromSentence];
@@ -122,7 +166,6 @@ function handleAnimalQuery(query) {
         return;
     }
 
-    // 2. Try direct match or declension on individual words
     const words = query.split(/\s+/);
     let found = null;
 
@@ -151,7 +194,6 @@ function handleAnimalQuery(query) {
         }
     }
 
-    // 3. Try each word through declension as last resort
     if (!found) {
         for (const w of words) {
             const base = normalizeAnimalName(w);
@@ -194,23 +236,37 @@ function playSound(enName) {
     if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
+        currentAudio = null;
     }
+
+    imageContainer.classList.remove('playing');
 
     const audio = new Audio(`sounds/${enName}.mp3`);
     currentAudio = audio;
 
-    imageContainer.classList.add('playing');
+    audio.addEventListener('canplaythrough', () => {
+        imageContainer.classList.add('playing');
+    }, { once: true });
+
     audio.addEventListener('ended', () => {
         imageContainer.classList.remove('playing');
     });
+
     audio.addEventListener('error', () => {
         imageContainer.classList.remove('playing');
-        statusText.textContent = 'Brak dźwięku dla tego zwierzęcia';
     });
+
+    // Timeout safety - remove playing state after 30s max
+    const safetyTimeout = setTimeout(() => {
+        imageContainer.classList.remove('playing');
+    }, 30000);
+
+    audio.addEventListener('ended', () => clearTimeout(safetyTimeout));
+    audio.addEventListener('error', () => clearTimeout(safetyTimeout));
 
     audio.play().catch(() => {
         imageContainer.classList.remove('playing');
-        statusText.textContent = 'Dotknij ekranu i spróbuj ponownie';
+        clearTimeout(safetyTimeout);
     });
 }
 
@@ -231,6 +287,7 @@ function searchAnimal() {
 
 searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
+        e.preventDefault();
         searchAnimal();
     }
 });
