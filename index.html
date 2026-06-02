@@ -23,6 +23,8 @@
             overflow: hidden;
             -webkit-user-select: none;
             user-select: none;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .animal-display {
@@ -31,15 +33,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 10px 20px;
             position: relative;
         }
 
         .animal-image-container {
-            width: 80vw;
-            height: 80vw;
-            max-width: 400px;
-            max-height: 400px;
+            width: 55vw;
+            height: 55vw;
+            max-width: 300px;
+            max-height: 300px;
             border-radius: 24px;
             overflow: hidden;
             background: #16213e;
@@ -67,9 +69,9 @@
         }
 
         .animal-name {
-            font-size: 36px;
+            font-size: 28px;
             font-weight: 700;
-            margin-top: 24px;
+            margin-top: 12px;
             text-transform: uppercase;
             letter-spacing: 2px;
             text-align: center;
@@ -90,7 +92,7 @@
         }
 
         .controls {
-            padding: 20px 20px 40px;
+            padding: 12px 20px 24px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -180,8 +182,8 @@
 
         .replay-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 8px;
+            right: 16px;
             width: 48px;
             height: 48px;
             border-radius: 50%;
@@ -202,8 +204,8 @@
 
         .list-toggle {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 8px;
+            left: 16px;
             width: 48px;
             height: 48px;
             border-radius: 50%;
