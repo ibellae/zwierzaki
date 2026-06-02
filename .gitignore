@@ -1,0 +1,6 @@
+download*.sh
+download*.py
+download*.ps1
+server.ps1
+sound_catalog.json
+.claude/
