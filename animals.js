@@ -71,7 +71,6 @@ const ANIMALS_DB = {
     "koala": { en: "koala", emoji: "🐨" },
     "kangur": { en: "kangaroo", emoji: "🦘" },
     "panda": { en: "panda", emoji: "🐼" },
-    "jaguar": { en: "jaguar", emoji: "🐆" },
     "leopard": { en: "leopard", emoji: "🐆" },
     "gepard": { en: "cheetah", emoji: "🐆" },
     "pantera": { en: "panther", emoji: "🐆" },
@@ -87,7 +86,6 @@ const ANIMALS_DB = {
     "dzik": { en: "wild_boar", emoji: "🐗" },
     "sęp": { en: "vulture", emoji: "🦅" },
     "bocian": { en: "stork", emoji: "🪽" },
-    "pelikan": { en: "pelican", emoji: "🐦" },
     "koliber": { en: "hummingbird", emoji: "🐦" },
     "słowik": { en: "nightingale", emoji: "🐦" },
     "kukułka": { en: "cuckoo", emoji: "🐦" },
@@ -230,8 +228,6 @@ const DECLENSION_MAP = {
     "kangura": "kangur", "kangurem": "kangur",
     // panda
     "pandy": "panda", "pandzie": "panda", "pandę": "panda", "pandą": "panda",
-    // jaguar
-    "jaguara": "jaguar", "jaguarem": "jaguar",
     // leopard
     "leoparda": "leopard", "leopardem": "leopard",
     // gepard
@@ -262,8 +258,6 @@ const DECLENSION_MAP = {
     "sępa": "sęp", "sępem": "sęp",
     // bocian
     "bociana": "bocian", "bocianem": "bocian",
-    // pelikan
-    "pelikana": "pelikan", "pelikanem": "pelikan",
     // koliber
     "kolibra": "koliber", "kolibrem": "koliber",
     // słowik
