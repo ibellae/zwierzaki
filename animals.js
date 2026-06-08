@@ -95,6 +95,11 @@ const ANIMALS_DB = {
     "drozd": { en: "thrush", emoji: "🐦" },
     "sikora": { en: "titmouse", emoji: "🐦" },
     "sikorka": { en: "titmouse", emoji: "🐦" },
+    "ryba": { en: "fish", emoji: "🐟" },
+    "rybka": { en: "fish", emoji: "🐟" },
+    "mrówka": { en: "ant", emoji: "🐜" },
+    "żółw": { en: "turtle", emoji: "🐢" },
+    "biedronka": { en: "ladybug", emoji: "🐞" },
 };
 
 // Polish declension forms → base form (nominative)
@@ -274,6 +279,15 @@ const DECLENSION_MAP = {
     // sikora
     "sikory": "sikora", "sikorze": "sikora", "sikorę": "sikora", "sikorą": "sikora",
     "sikorki": "sikorka", "sikorce": "sikorka", "sikorkę": "sikorka", "sikorką": "sikorka",
+    // ryba
+    "ryby": "ryba", "rybie": "ryba", "rybę": "ryba", "rybą": "ryba",
+    "rybki": "rybka", "rybce": "rybka", "rybkę": "rybka", "rybką": "rybka",
+    // mrówka
+    "mrówki": "mrówka", "mrówce": "mrówka", "mrówkę": "mrówka", "mrówką": "mrówka",
+    // żółw
+    "żółwia": "żółw", "żółwiem": "żółw", "żółwiu": "żółw",
+    // biedronka
+    "biedronki": "biedronka", "biedronce": "biedronka", "biedronkę": "biedronka", "biedronką": "biedronka",
     // świerszcz
     "świerszcza": "świerszcz", "świerszczem": "świerszcz",
     // cykada

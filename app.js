@@ -2,16 +2,16 @@ const imageContainer = document.getElementById('imageContainer');
 const animalNameEl = document.getElementById('animalName');
 const statusText = document.getElementById('statusText');
 const micBtn = document.getElementById('micBtn');
-const replayBtn = document.getElementById('replayBtn');
+const hintText = document.getElementById('hintText');
 const searchInput = document.getElementById('searchInput');
 const animalGrid = document.getElementById('animalGrid');
 const listSearchInput = document.getElementById('listSearchInput');
 
 let currentAudio = null;
 let currentAnimalEn = null;
-let isListening = false;
 let recognition = null;
-let listenTimeout = null;
+let micActive = false; // true = mic is on and listening continuously
+let restartTimer = null;
 
 // Unlock audio on first touch (iOS requirement)
 let audioUnlocked = false;
@@ -29,18 +29,17 @@ document.addEventListener('click', unlockAudio, { once: true });
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SpeechRecognition) {
     document.body.classList.add('no-speech');
-    statusText.textContent = 'Wpisz nazwę zwierzęcia poniżej';
+    statusText.textContent = 'Wpisz nazwe zwierzecia ponizej';
 }
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'pl-PL';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (event) => {
-        clearTimeout(listenTimeout);
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript = event.results[i][0].transcript;
@@ -48,76 +47,65 @@ if (SpeechRecognition) {
         statusText.textContent = `"${transcript}"`;
 
         if (event.results[event.results.length - 1].isFinal) {
-            stopListening();
             handleAnimalQuery(transcript.trim().toLowerCase());
         }
     };
 
     recognition.onerror = (event) => {
-        clearTimeout(listenTimeout);
-        stopListening();
-        if (event.error === 'no-speech') {
-            statusText.textContent = 'Nie usłyszałem. Spróbuj jeszcze raz.';
-        } else if (event.error === 'not-allowed') {
-            statusText.textContent = 'Brak dostępu do mikrofonu. Sprawdź ustawienia.';
-        } else {
-            statusText.textContent = 'Spróbuj ponownie.';
+        if (event.error === 'not-allowed') {
+            micActive = false;
+            micBtn.classList.remove('listening');
+            micBtn.classList.add('muted');
+            statusText.textContent = 'Brak dostepu do mikrofonu. Sprawdz ustawienia.';
+            return;
         }
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+            // normal — will auto-restart via onend
+            return;
+        }
+        statusText.textContent = 'Sprobuj ponownie.';
     };
 
     recognition.onend = () => {
-        clearTimeout(listenTimeout);
-        if (isListening) {
-            stopListening();
+        // Auto-restart if mic should be active
+        if (micActive) {
+            clearTimeout(restartTimer);
+            restartTimer = setTimeout(() => {
+                if (micActive) {
+                    try { recognition.start(); } catch (e) {}
+                }
+            }, 300);
         }
     };
 }
 
-function toggleListening() {
-    if (isListening) {
-        try { recognition.stop(); } catch (e) {}
-        stopListening();
-    } else {
-        startListening();
-    }
-}
-
-function startListening() {
+// Toggle mic on/off — user taps once to activate, then it stays on
+function toggleMic() {
     if (!recognition) return;
 
-    // Stop any playing audio first
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-    }
-    imageContainer.classList.remove('playing');
-
-    isListening = true;
-    micBtn.classList.add('listening');
-    statusText.textContent = 'Słucham...';
-
-    // Safety timeout - stop after 8 seconds if nothing happens
-    clearTimeout(listenTimeout);
-    listenTimeout = setTimeout(() => {
-        if (isListening) {
-            try { recognition.stop(); } catch (e) {}
-            stopListening();
-            statusText.textContent = 'Nie usłyszałem. Naciśnij mikrofon i spróbuj jeszcze raz.';
+    if (micActive) {
+        // Turn off
+        micActive = false;
+        clearTimeout(restartTimer);
+        try { recognition.stop(); } catch (e) {}
+        micBtn.classList.remove('listening');
+        micBtn.classList.add('muted');
+        statusText.textContent = 'Mikrofon wylaczony';
+        hintText.textContent = 'Tapnij mikrofon aby sluchac';
+    } else {
+        // Turn on
+        micActive = true;
+        micBtn.classList.remove('muted');
+        micBtn.classList.add('listening');
+        statusText.textContent = 'Slucham...';
+        hintText.textContent = 'Powiedz np. "jak brzmi krowa"';
+        try { recognition.start(); } catch (e) {
+            // If start fails, retry once
+            setTimeout(() => {
+                try { recognition.start(); } catch (e2) {}
+            }, 500);
         }
-    }, 8000);
-
-    try {
-        recognition.start();
-    } catch (e) {
-        stopListening();
-        statusText.textContent = 'Naciśnij mikrofon ponownie.';
     }
-}
-
-function stopListening() {
-    isListening = false;
-    micBtn.classList.remove('listening');
-    clearTimeout(listenTimeout);
 }
 
 const SENTENCE_PATTERNS = [
@@ -205,7 +193,7 @@ function handleAnimalQuery(query) {
     }
 
     if (!found) {
-        statusText.textContent = `Nie znam "${query}". Spróbuj innego zwierzęcia.`;
+        statusText.textContent = `Nie znam "${query}". Sprobuj innego zwierzecia.`;
         return;
     }
 
@@ -216,7 +204,6 @@ function showAnimal(plName, enName, emoji) {
     currentAnimalEn = enName;
     animalNameEl.textContent = plName.toUpperCase();
     statusText.textContent = '';
-    replayBtn.classList.add('visible');
 
     const img = document.createElement('img');
     img.alt = plName;
@@ -279,12 +266,7 @@ function stopSound() {
     imageContainer.classList.remove('playing');
 }
 
-function replaySound() {
-    if (currentAnimalEn) {
-        playSound(currentAnimalEn);
-    }
-}
-
+// Tap image to play/stop
 imageContainer.addEventListener('click', () => {
     if (currentAudio && !currentAudio.paused) {
         stopSound();
