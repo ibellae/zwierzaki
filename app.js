@@ -7,25 +7,44 @@ const searchInput = document.getElementById('searchInput');
 const animalGrid = document.getElementById('animalGrid');
 const listSearchInput = document.getElementById('listSearchInput');
 
-let currentAudio = null;
 let currentAnimalEn = null;
 let recognition = null;
-let micActive = false; // true = mic is on and listening continuously
+let micActive = false;
 let restartTimer = null;
 
-// Unlock audio on first touch (iOS requirement)
-let audioUnlocked = false;
+// --- Single reusable Audio element (iOS requires user-gesture unlock) ---
+const sharedAudio = new Audio();
+sharedAudio.preload = 'auto';
+let audioReady = false; // true after first user-gesture play
+
 function unlockAudio() {
-    if (audioUnlocked) return;
-    const silence = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAgAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAbD/2wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAALAAJkAUAAAP/////////////////////////////////////////////////////////////////////////////////+MYxDAAAANIAAAAAP///////////////////////////////////////////////////////////////////////////////w==');
-    silence.play().then(() => {
-        audioUnlocked = true;
-        silence.pause();
+    if (audioReady) return;
+    // Play silent data URI to "bless" this element
+    sharedAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAgAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAbD/2wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAALAAJkAUAAAP/////////////////////////////////////////////////////////////////////////////////+MYxDAAAANIAAAAAP///////////////////////////////////////////////////////////////////////////////w==';
+    sharedAudio.play().then(() => {
+        sharedAudio.pause();
+        sharedAudio.currentTime = 0;
+        audioReady = true;
     }).catch(() => {});
 }
-document.addEventListener('touchstart', unlockAudio, { once: true });
-document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { once: false });
+document.addEventListener('click', unlockAudio, { once: false });
 
+// Wire up audio events for playing state
+sharedAudio.addEventListener('playing', () => {
+    imageContainer.classList.add('playing');
+});
+sharedAudio.addEventListener('ended', () => {
+    imageContainer.classList.remove('playing');
+});
+sharedAudio.addEventListener('pause', () => {
+    imageContainer.classList.remove('playing');
+});
+sharedAudio.addEventListener('error', () => {
+    imageContainer.classList.remove('playing');
+});
+
+// --- Speech Recognition ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SpeechRecognition) {
     document.body.classList.add('no-speech');
@@ -60,14 +79,12 @@ if (SpeechRecognition) {
             return;
         }
         if (event.error === 'no-speech' || event.error === 'aborted') {
-            // normal — will auto-restart via onend
             return;
         }
         statusText.textContent = 'Sprobuj ponownie.';
     };
 
     recognition.onend = () => {
-        // Auto-restart if mic should be active
         if (micActive) {
             clearTimeout(restartTimer);
             restartTimer = setTimeout(() => {
@@ -79,12 +96,10 @@ if (SpeechRecognition) {
     };
 }
 
-// Toggle mic on/off — user taps once to activate, then it stays on
 function toggleMic() {
     if (!recognition) return;
 
     if (micActive) {
-        // Turn off
         micActive = false;
         clearTimeout(restartTimer);
         try { recognition.stop(); } catch (e) {}
@@ -93,14 +108,12 @@ function toggleMic() {
         statusText.textContent = 'Mikrofon wylaczony';
         hintText.textContent = 'Tapnij mikrofon aby sluchac';
     } else {
-        // Turn on
         micActive = true;
         micBtn.classList.remove('muted');
         micBtn.classList.add('listening');
         statusText.textContent = 'Slucham...';
         hintText.textContent = 'Powiedz np. "jak brzmi krowa"';
         try { recognition.start(); } catch (e) {
-            // If start fails, retry once
             setTimeout(() => {
                 try { recognition.start(); } catch (e2) {}
             }, 500);
@@ -108,6 +121,7 @@ function toggleMic() {
     }
 }
 
+// --- Sentence parsing ---
 const SENTENCE_PATTERNS = [
     /jak (?:brzmi|robi|mówi|krzyczy|śpiewa|ryczy|warczy|miauczy|szczeka|wyje) (.+)/,
     /jaki (?:dźwięk|odgłos|głos) (?:wydaje|robi|ma) (.+)/,
@@ -144,7 +158,6 @@ function extractAnimalFromSentence(query) {
 
 function handleAnimalQuery(query) {
     query = query.replace(/[?.!,]/g, '').trim();
-
     if (!query) return;
 
     const fromSentence = extractAnimalFromSentence(query);
@@ -200,6 +213,7 @@ function handleAnimalQuery(query) {
     showAnimal(found.pl, found.en, found.emoji);
 }
 
+// --- Display & Sound ---
 function showAnimal(plName, enName, emoji) {
     currentAnimalEn = enName;
     animalNameEl.textContent = plName.toUpperCase();
@@ -220,61 +234,32 @@ function showAnimal(plName, enName, emoji) {
 }
 
 function playSound(enName) {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-    }
-
-    imageContainer.classList.remove('playing');
-
-    const audio = new Audio(`sounds/${enName}.mp3`);
-    currentAudio = audio;
-
-    audio.addEventListener('canplaythrough', () => {
-        imageContainer.classList.add('playing');
-    }, { once: true });
-
-    audio.addEventListener('ended', () => {
+    // Reuse the single shared Audio element
+    sharedAudio.pause();
+    sharedAudio.currentTime = 0;
+    sharedAudio.src = `sounds/${enName}.mp3`;
+    sharedAudio.play().catch(() => {
+        // If play fails (iOS not unlocked yet), it will work on next tap
         imageContainer.classList.remove('playing');
-    });
-
-    audio.addEventListener('error', () => {
-        imageContainer.classList.remove('playing');
-    });
-
-    // Timeout safety - remove playing state after 30s max
-    const safetyTimeout = setTimeout(() => {
-        imageContainer.classList.remove('playing');
-    }, 30000);
-
-    audio.addEventListener('ended', () => clearTimeout(safetyTimeout));
-    audio.addEventListener('error', () => clearTimeout(safetyTimeout));
-
-    audio.play().catch(() => {
-        imageContainer.classList.remove('playing');
-        clearTimeout(safetyTimeout);
     });
 }
 
 function stopSound() {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-    }
+    sharedAudio.pause();
+    sharedAudio.currentTime = 0;
     imageContainer.classList.remove('playing');
 }
 
 // Tap image to play/stop
 imageContainer.addEventListener('click', () => {
-    if (currentAudio && !currentAudio.paused) {
+    if (!sharedAudio.paused) {
         stopSound();
     } else if (currentAnimalEn) {
         playSound(currentAnimalEn);
     }
 });
 
+// --- Search ---
 function searchAnimal() {
     const query = searchInput.value.trim().toLowerCase();
     if (query) {
@@ -291,6 +276,7 @@ searchInput.addEventListener('keydown', (e) => {
     }
 });
 
+// --- Animal list ---
 function toggleList() {
     const overlay = document.getElementById('animalList');
     overlay.classList.toggle('open');
