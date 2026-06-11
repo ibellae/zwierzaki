@@ -11,44 +11,55 @@ let currentAnimalEn = null;
 let recognition = null;
 let micActive = false;
 let restartTimer = null;
+let playingSound = false;
+let playToken = 0;
 
 // --- Single reusable Audio element (iOS requires user-gesture unlock) ---
 const sharedAudio = new Audio();
 sharedAudio.preload = 'auto';
-let audioReady = false; // true after first user-gesture play
+let audioUnlocked = false;
 
 function unlockAudio() {
-    if (audioReady) return;
-    // Play silent data URI to "bless" this element
+    if (audioUnlocked) return;
     sharedAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAgAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAbD/2wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+MYxAALAAJkAUAAAP/////////////////////////////////////////////////////////////////////////////////+MYxDAAAANIAAAAAP///////////////////////////////////////////////////////////////////////////////w==';
     sharedAudio.play().then(() => {
         sharedAudio.pause();
         sharedAudio.currentTime = 0;
-        audioReady = true;
+        audioUnlocked = true;
     }).catch(() => {});
 }
 document.addEventListener('touchstart', unlockAudio, { once: false });
 document.addEventListener('click', unlockAudio, { once: false });
 
-// Wire up audio events for playing state
+function finishSound() {
+    playingSound = false;
+    imageContainer.classList.remove('playing');
+    // Resume mic after sound finishes
+    if (micActive) {
+        scheduleRestart();
+    }
+}
+
 sharedAudio.addEventListener('playing', () => {
     imageContainer.classList.add('playing');
 });
-sharedAudio.addEventListener('ended', () => {
-    imageContainer.classList.remove('playing');
-});
-sharedAudio.addEventListener('pause', () => {
-    imageContainer.classList.remove('playing');
-});
-sharedAudio.addEventListener('error', () => {
-    imageContainer.classList.remove('playing');
-});
+sharedAudio.addEventListener('ended', finishSound);
+sharedAudio.addEventListener('error', finishSound);
 
 // --- Speech Recognition ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SpeechRecognition) {
     document.body.classList.add('no-speech');
     statusText.textContent = 'Wpisz nazwe zwierzecia ponizej';
+}
+
+function scheduleRestart() {
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(() => {
+        if (micActive && !playingSound) {
+            try { recognition.start(); } catch (e) {}
+        }
+    }, 400);
 }
 
 if (SpeechRecognition) {
@@ -81,17 +92,12 @@ if (SpeechRecognition) {
         if (event.error === 'no-speech' || event.error === 'aborted') {
             return;
         }
-        statusText.textContent = 'Sprobuj ponownie.';
     };
 
     recognition.onend = () => {
-        if (micActive) {
-            clearTimeout(restartTimer);
-            restartTimer = setTimeout(() => {
-                if (micActive) {
-                    try { recognition.start(); } catch (e) {}
-                }
-            }, 300);
+        // Only restart if mic is on AND no sound is playing
+        if (micActive && !playingSound) {
+            scheduleRestart();
         }
     };
 }
@@ -234,20 +240,35 @@ function showAnimal(plName, enName, emoji) {
 }
 
 function playSound(enName) {
-    // Reuse the single shared Audio element
+    const token = ++playToken;
+    playingSound = true;
+
+    // Stop mic to free the audio session on iOS
+    if (recognition && micActive) {
+        clearTimeout(restartTimer);
+        try { recognition.stop(); } catch (e) {}
+    }
+
     sharedAudio.pause();
     sharedAudio.currentTime = 0;
     sharedAudio.src = `sounds/${enName}.mp3`;
     sharedAudio.play().catch(() => {
-        // If play fails (iOS not unlocked yet), it will work on next tap
-        imageContainer.classList.remove('playing');
+        // Only clean up if this is still the current play
+        if (token === playToken) {
+            finishSound();
+        }
     });
 }
 
 function stopSound() {
     sharedAudio.pause();
     sharedAudio.currentTime = 0;
+    playingSound = false;
     imageContainer.classList.remove('playing');
+    // Resume mic after manual stop
+    if (micActive) {
+        scheduleRestart();
+    }
 }
 
 // Tap image to play/stop
